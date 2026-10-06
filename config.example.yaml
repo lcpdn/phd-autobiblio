@@ -1,0 +1,120 @@
+# Sélecteur de lectures — configuration
+# À copier vers ~/.config/selecteur-cti/config.yaml puis à adapter.
+# Tout ce qui n'est pas redéfini ici garde sa valeur par défaut (selecteur/config.py).
+
+zotero:
+  library_id: "0"            # "0" = bibliothèque locale de l'utilisateur, via l'API locale
+  library_type: user
+  app_name: "Sélecteur de lectures — thèse CTI"
+  collection: null           # clé d'une collection Zotero pour restreindre le corpus
+  repertoire_storage: /home/loic/Zotero/storage
+  repertoire_liens: null     # « Linked Attachment Base Directory », si utilisé
+
+chemins:
+  fiches: /home/loic/these/fiches            # répertoire des fiches de lecture JSON
+  sorties: /home/loic/these/selecteur/sorties
+  cache: /home/loic/these/selecteur/cache
+  tampon_pdf: /home/loic/these/selecteur/tampon
+
+openalex:
+  actif: true
+  mailto: loic@example.org   # adresse réelle : donne accès au pool poli d'OpenAlex
+  ttl_jours: 30                    # au-delà, le nombre de citations est rafraîchi
+  pause: 0.15
+
+fiches:
+  # Format de fiche v2.0 : le DOI se trouve dans identification.doi_url
+  champs_doi:
+    - identification.doi_url
+    - identification.doi
+    - doi
+  champ_pertinence: notes_personnelles.pertinence
+  champ_id: meta.id_fiche
+
+scoring:
+  # §A.2 — demi-vie de fraîcheur différenciée par littérature.
+  # Un papier de 2018 sur les IoC est daté ; Heuer (1999) ne l'est pas.
+  demi_vie_defaut: 3.0
+  demi_vie_par_tag:
+    cti: 1.5
+    systemes-autonomes: 1.5
+    renseignement: 5.0
+    cotation: 5.0
+
+  amortissement_age: 1.0     # a₀ dans log(1 + c / (a + a₀)) — §A.3
+
+  # §A.4 — priorité thématique graduée. La somme est plafonnée à 1.
+  poids_tags:
+    qr1: 0.6
+    qr2: 0.6
+    qr3: 0.6
+    qd1: 0.6
+    cotation: 0.3
+    cti: 0.3
+    systemes-autonomes: 0.3
+  tags_questions: [qr1, qr2, qr3, qd1]
+  bonus_pont: 0.3            # article touchant ≥ 2 questions de recherche distinctes
+
+  redondance: 0.3            # ρ — pénalité de similarité aux articles déjà lus (§A.5)
+  types_survey: [review, survey, "systematic review", "état de l'art"]
+  imputation_openalex: true  # médiane de la même année plutôt qu'un zéro silencieux
+
+selection:
+  mode: cardinal             # "cardinal" (n articles/jour) ou "budget" (effort constant)
+  n: 2
+  budget_effort: 2.0         # utilisé en mode budget — §B.3
+  pages_par_unite: 12
+  effort_defaut: 1.0
+  diversite: 0.0             # λ MMR ∈ [0,1] — 0 = désactivé (famille B, mois 1)
+  seuil_plancher: null       # score minimal pour être retenu
+  # Transfert vers la reMarkable ; en cas d'échec le PDF reste dans le tampon.
+  commande_transfert: null   # ex. : "rmapi put {pdf} /Lectures"
+
+# §E.2 — mode piloté par échéance. Laisser date à null hors période de rédaction.
+echeance:
+  date: null                 # ex. : 2027-03-15
+  tags: []                   # tags du chapitre en cours, ex. : [qr1, cotation]
+  kappa: 20.0
+  plafond: 1.0
+
+# §E.1 — profils de phase. "auto" choisit la phase dont l'intervalle contient la date
+# du jour ; on peut aussi forcer un nom de phase (cadrage, positionnement, …).
+phase: auto
+phases:
+  cadrage:
+    alpha: 2.0
+    beta: 1.0
+    gamma: 1.5
+    bonus_survey: 0.5
+    filtre_tags: null
+    debut: 2026-01-01
+    fin: 2026-09-30
+  positionnement:
+    alpha: 1.0
+    beta: 1.5
+    gamma: 2.5
+    bonus_survey: 0.2
+    filtre_tags: null
+    debut: 2026-10-01
+    fin: 2028-03-31
+  contribution:
+    alpha: 0.5
+    beta: 1.5
+    gamma: 3.0
+    bonus_survey: 0.0
+    filtre_tags: null        # ex. : [qr2] pour ne lire que ce qui sert le chapitre courant
+    debut: 2028-04-01
+    fin: 2030-03-31
+  redaction:
+    alpha: 0.5
+    beta: 3.0
+    gamma: 2.0
+    bonus_survey: 0.0
+    filtre_tags: null
+    debut: 2030-04-01
+    fin: 2032-12-31
+
+qc:
+  types_doi_attendu: [journalArticle, conferencePaper, preprint, bookSection]
+  prefixe_tags: "qc:"
+  signaler_sans_pdf: true    # coûteux sur un gros corpus : une requête par référence
